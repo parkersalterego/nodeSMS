@@ -24,6 +24,17 @@ app.use(express.static(__dirname + '/public'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: true}));
 
+// Catch Form Submit
+app.post('/', (req, res) => {
+    res.send(req.body);
+    console.log(req.body);
+});
+
+// Index Route
+app.get('/', (req, res) => {
+    res.render('index');
+});
+
 // Start Server
 app.listen(app.get('port'), () => {
     console.log('Server listening on port ' + app.get('port'));
