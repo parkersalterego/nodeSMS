@@ -5,12 +5,18 @@ const express = require('express'),
       Nexmo = require('nexmo'),
       socketio = require('socket.io');
 
+require('dotenv').config();
+
+// Init Nexmo
+const nexmo = new Nexmo({
+    apiKey: process.env.NEXMO_KEY,
+    apiSecret: process.env.NEXMO_SECRET
+}, {debug: true});
+
 // initialize app
 const app = express();
 
 // Environment
-app.set('env', process.env.NODE_ENV || 'development');
-app.set('host', process.env.HOST || '0.0.0.0');
 app.set('port', process.env.PORT || 3000);
 
 // Template Engine Setup
@@ -26,9 +32,51 @@ app.use(bodyParser.urlencoded({extended: true}));
 
 // Catch Form Submit
 app.post('/', (req, res) => {
-    res.send(req.body);
-    console.log(req.body);
+    // res.send(req.body);
+    // console.log(req.body);
+    const number = req.body.number;
+    const text = req.body.text;
+
+    nexmo.message.sendSms('12018993151', number, text, {type: 'unicode'}, (err, res) => {
+        if (err) {
+            console.log(err);
+        } else {
+            console.dir(res);
+            // Get Data From Response
+            const data = {
+                id: res.messages[0]['message-id'],
+                number: res.messages[0]['to']
+            }
+
+            // Emit to the client
+            io.emit('smsStatus', data);
+        }
+    });
 });
+
+// Incoming Messages
+app.post('/inbound', (req, res) => {
+    handleParams(req.body, res);
+});
+
+function handleParams(params, res) {
+  if (!params.to || !params.msisdn) {
+    console.log('This is not a valid inbound SMS message!');
+  } else {
+    console.log('Success');
+    let incomingData = {
+      messageId: params.messageId,
+      from: params.msisdn,
+      text: params.text,
+      type: params.type,
+      timestamp: params['message-timestamp']
+    };
+    res.send(incomingData);
+    console.log(incomingData);
+  }
+  res.status(200).end();
+}
+ 
 
 // Index Route
 app.get('/', (req, res) => {
@@ -36,6 +84,16 @@ app.get('/', (req, res) => {
 });
 
 // Start Server
-app.listen(app.get('port'), () => {
+const server = app.listen(app.get('port'), () => {
     console.log('Server listening on port ' + app.get('port'));
+});
+
+// Connect to socket.io
+const io = socketio(server);
+io.on('connection', (socket) => {
+    console.log('Socket Connection Initialized');
+});
+
+io.on('disconnect', () => {
+    console.log('Socket Connection Terminated');
 });
