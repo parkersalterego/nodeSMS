@@ -37,15 +37,17 @@ app.post('/', (req, res) => {
     const number = req.body.number;
     const text = req.body.text;
 
+    handleMessage(text, number);
+
     nexmo.message.sendSms('12018993151', number, text, {type: 'unicode'}, (err, res) => {
         if (err) {
             console.log(err);
         } else {
-            console.dir(res);
+            console.log(res);
             // Get Data From Response
             const data = {
                 id: res.messages[0]['message-id'],
-                number: res.messages[0]['to']
+                number: res.messages[0]['to'],
             }
 
             // Emit to the client
@@ -72,11 +74,10 @@ function handleParams(params, res) {
       timestamp: params['message-timestamp']
     };
     res.send(incomingData);
-    console.log(incomingData);
+    io.emit('incomingSms', incomingData);
   }
   res.status(200).end();
 }
- 
 
 // Index Route
 app.get('/', (req, res) => {
@@ -97,3 +98,41 @@ io.on('connection', (socket) => {
 io.on('disconnect', () => {
     console.log('Socket Connection Terminated');
 });
+
+let handleMessage = (text, number) => {
+
+    let queryValues = {
+        command: '',
+        task: '',
+        contacts: []
+    }
+
+    text.split(' ').forEach((word) => {
+        textEvaluator(word);
+        queryEvaluator(queryValues);
+    });
+    
+}
+
+let textEvaluator = (word) => {
+    if (word.charAt(0) == '!') {
+        queryValues.command = word;
+    }
+    else if (word.charAt(0) == '@') {
+        queryValues.contacts.push(word);
+    }
+    else if (word.charAt(0) == 'schedule') {
+        queryValues.task = word;
+    }
+}
+
+let queryEvaluator = (queryObj) => {
+    let command = queryObj.command !== '' ? queryObj.command : false;
+    let task = queryObj.task !== '' ? queryObj.task : false;
+    let contacts = queryObj.contacts.length > 0 ? queryObj.contacts : false;
+
+    if (command != false && task != false && contacts != false) {
+        
+    }
+}
+
